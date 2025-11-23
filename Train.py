@@ -10,21 +10,19 @@ from torchvision import datasets, transforms, models
 from collections import Counter
 from sklearn.metrics import classification_report, confusion_matrix
 
-
+#definuje parametre
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Medical Image Classification via Transfer Learning (Inception-v3 on CXR)"
     )
-    parser.add_argument("--data_dir", type=str, required=True,
-                        help="Cesta k priečinku s podpriečinkami train/val/test")
+    parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--num_epochs", type=int, default=15)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--weight_decay", type=float, default=1e-4)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--output_dir", type=str, default="outputs")
-    parser.add_argument("--freeze_backbone", action="store_true",
-                        help="Ak je nastavené, zmrazí všetky vrstvy okrem hlavy")
+    parser.add_argument("--freeze_backbone", action="store_true")
     args = parser.parse_args()
     return args
 
@@ -57,7 +55,7 @@ def get_transforms():
 
     return train_tf, eval_tf
 
-
+#načítanie dát
 def create_dataloaders(data_dir, batch_size, num_workers):
     data_dir = Path(data_dir)
     train_tf, eval_tf = get_transforms()
@@ -82,7 +80,7 @@ def create_dataloaders(data_dir, batch_size, num_workers):
     class_names = image_datasets["train"].classes
     return image_datasets, dataloaders, class_names
 
-
+#definícia modelu
 def build_model(num_classes: int, freeze_backbone: bool = False):
     """
     Načítame Inception-v3 predtréningom na ImageNet a nahradíme klasifikačné heady.
@@ -90,21 +88,24 @@ def build_model(num_classes: int, freeze_backbone: bool = False):
     weights = models.Inception_V3_Weights.IMAGENET1K_V1
     model = models.inception_v3(weights=weights)
 
+    # Zmeníme finálnu fully-connected vrstvu
     in_features_main = model.fc.in_features
     model.fc = nn.Linear(in_features_main, num_classes)
 
+    # Inception má aj AuxLogits hlavu – upravíme ju tiež
     if model.aux_logits:
         in_features_aux = model.AuxLogits.fc.in_features
         model.AuxLogits.fc = nn.Linear(in_features_aux, num_classes)
 
     if freeze_backbone:
         for name, param in model.named_parameters():
+            # Necháme trénovať len nové hlavy
             if "fc" not in name and "AuxLogits.fc" not in name:
                 param.requires_grad = False
 
     return model
 
-
+#treningova epocha
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
@@ -117,6 +118,7 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
 
         optimizer.zero_grad()
 
+        # Inception-v3 vracia (main_output, aux_output) v tréningovom režime
         outputs = model(inputs)
         if isinstance(outputs, tuple):
             main_outputs, aux_outputs = outputs
@@ -139,7 +141,7 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
     epoch_acc = running_corrects / total
     return epoch_loss, epoch_acc
 
-
+#vyhodnotenie modelu
 @torch.no_grad()
 def evaluate(model, dataloader, criterion, device):
     model.eval()
@@ -156,7 +158,7 @@ def evaluate(model, dataloader, criterion, device):
 
         outputs = model(inputs)
         if isinstance(outputs, tuple):
-            outputs = outputs[0]  
+            outputs = outputs[0]  # použijeme hlavný výstup
 
         loss = criterion(outputs, labels)
         preds = outputs.argmax(dim=1)
@@ -187,7 +189,7 @@ def main():
 
     print(f"Using device: {device}")
 
-    # 1. Data 
+    #Dáta + DataLoadery
     print("Loading data...")
     datasets_dict, dataloaders, class_names = create_dataloaders(
         args.data_dir, args.batch_size, args.num_workers
@@ -207,12 +209,11 @@ def main():
     class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
 
 
-    # 2. Model
+    #Model a optimizer
     print("Building model...")
     model = build_model(num_classes=num_classes, freeze_backbone=args.freeze_backbone)
     model = model.to(device)
 
-    # 3. Criterion+optimizer
     num_classes = len(class_names)
     class_weights = []
     for cls_idx in range(num_classes):
@@ -220,6 +221,7 @@ def main():
 
     class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
+    #trénujeme len parametre, ktoré majú requires_grad = True
     params_to_update = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.Adam(
         params_to_update,
@@ -230,7 +232,7 @@ def main():
     best_val_acc = 0.0
     best_model_path = os.path.join(args.output_dir, "best_inception_v3.pth")
 
-    # 4. Tg slucka
+    #Tréningová slučka
     history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
 
     for epoch in range(1, args.num_epochs + 1):
@@ -255,7 +257,7 @@ def main():
         print(f"Val   loss: {val_loss:.4f} | acc: {val_acc:.4f}")
         print(f"Epoch time: {elapsed:.1f} s")
 
-        # naj model podla val_acc
+        #uložíme najlepší model podľa val_acc
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), best_model_path)
@@ -263,7 +265,7 @@ def main():
 
     print(f"\nTraining finished. Best val accuracy: {best_val_acc:.4f}")
 
-    # 5. Nacitame naj model + test
+    #Načítame najlepší model a otestujeme na test sete
     print("\nEvaluating on test set with best model...")
     model.load_state_dict(torch.load(best_model_path, map_location=device))
     test_loss, test_acc, y_true, y_pred = evaluate(
@@ -271,7 +273,7 @@ def main():
     )
     print(f"Test loss: {test_loss:.4f} | acc: {test_acc:.4f}")
 
-    # 6. report + cfm
+    #vyhodnotenie 
     report = classification_report(y_true, y_pred, target_names=class_names, digits=4)
     cm = confusion_matrix(y_true, y_pred)
 
