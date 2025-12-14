@@ -10,7 +10,7 @@ from torchvision import datasets, transforms, models
 from collections import Counter
 from sklearn.metrics import classification_report, confusion_matrix
 
-#definuje parametre
+#definuje parametre 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Medical Image Classification via Transfer Learning (Inception-v3 on CXR)"
@@ -99,7 +99,7 @@ def build_model(num_classes: int, freeze_backbone: bool = False):
 
     if freeze_backbone:
         for name, param in model.named_parameters():
-            # Necháme trénovať len nové hlavy
+            #Necháme trénovať len nové hlavy
             if "fc" not in name and "AuxLogits.fc" not in name:
                 param.requires_grad = False
 
