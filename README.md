@@ -2,7 +2,7 @@ Dáta XRay: https://huggingface.co/datasets/hf-vision/chest-xray-pneumonia  \
 Dáta COVID: https://www.kaggle.com/datasets/tawsifurrahman/covid19-radiography-database
 
 Projekt obsahuje dva tréningové skripty:\
-  Train_XRay.py  (tréning na XRay Pneumonia datasete) \
+  Train.py  (tréning na XRay Pneumonia datasete) \
   Train_COVID.py (tréning na COVID Radiography datasete)
 
 Spustenie:\
