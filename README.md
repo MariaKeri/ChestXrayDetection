@@ -3,17 +3,17 @@ Dáta COVID: https://www.kaggle.com/datasets/tawsifurrahman/covid19-radiography-
 
 Projekt obsahuje dva tréningové skripty:
   Train_XRay.py  (tréning na XRay Pneumonia datasete) \
-  Train_COVID.py (tréning na COVID Radiography datasete)\
+  Train_COVID.py (tréning na COVID Radiography datasete)
 
 Spustenie:\
   python3 Train.py\
-  python3 Train_COVID.py\
+  python3 Train_COVID.py
 
 Očakávané umiestnenie datasetov:\
   /content/data/chest_xray\
-  /content/data/COVID-19_Radiography_Dataset\
+  /content/data/COVID-19_Radiography_Dataset
 
-Každý skript automaticky:\
+Každý skript automaticky:
     vytvorí stratifikovaný split 70/15/15 (splits.csv)\
     trénuje Inception-v3 v dvoch fázach (feature extraction + fine-tuning)\
     používa class weights, early stopping (val AUC), LR scheduler\
@@ -23,7 +23,7 @@ Každý skript automaticky:\
     vytvorí Grad-CAM galériu\
     uloží MODEL_CARD.md\
 
-Výstupy sa ukladajú do priečinka:\
+Výstupy sa ukladajú do priečinka:
   run_<DATASET>_<timestamp>
  
 
