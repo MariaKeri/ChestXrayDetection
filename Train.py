@@ -10,7 +10,7 @@ from torchvision import datasets, transforms, models
 from collections import Counter
 from sklearn.metrics import classification_report, confusion_matrix
 
-#definuje parametre 
+# parametre 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Medical Image Classification via Transfer Learning (Inception-v3 on CXR)"
@@ -26,12 +26,8 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
+#resize a augmentacie
 def get_transforms():
-    """
-    Inception-v3 očakáva vstupy 299x299, normalizované na ImageNet štatistiky.
-    Pre train pridáme augmentácie, pre val/test iba resize + center crop.
-    """
     imagenet_mean = [0.485, 0.456, 0.406]
     imagenet_std = [0.229, 0.224, 0.225]
 
@@ -55,7 +51,7 @@ def get_transforms():
 
     return train_tf, eval_tf
 
-#načítanie dát
+# nacitanie dat
 def create_dataloaders(data_dir, batch_size, num_workers):
     data_dir = Path(data_dir)
     train_tf, eval_tf = get_transforms()
@@ -82,24 +78,20 @@ def create_dataloaders(data_dir, batch_size, num_workers):
 
 #definícia modelu
 def build_model(num_classes: int, freeze_backbone: bool = False):
-    """
-    Načítame Inception-v3 predtréningom na ImageNet a nahradíme klasifikačné heady.
-    """
     weights = models.Inception_V3_Weights.IMAGENET1K_V1
     model = models.inception_v3(weights=weights)
 
-    # Zmeníme finálnu fully-connected vrstvu
     in_features_main = model.fc.in_features
     model.fc = nn.Linear(in_features_main, num_classes)
 
-    # Inception má aj AuxLogits hlavu – upravíme ju tiež
+    #auxlogits hlava
     if model.aux_logits:
         in_features_aux = model.AuxLogits.fc.in_features
         model.AuxLogits.fc = nn.Linear(in_features_aux, num_classes)
 
     if freeze_backbone:
         for name, param in model.named_parameters():
-            #Necháme trénovať len nové hlavy
+            #trenuju sa len nove hlavy
             if "fc" not in name and "AuxLogits.fc" not in name:
                 param.requires_grad = False
 
@@ -118,7 +110,6 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
 
         optimizer.zero_grad()
 
-        # Inception-v3 vracia (main_output, aux_output) v tréningovom režime
         outputs = model(inputs)
         if isinstance(outputs, tuple):
             main_outputs, aux_outputs = outputs
@@ -158,7 +149,7 @@ def evaluate(model, dataloader, criterion, device):
 
         outputs = model(inputs)
         if isinstance(outputs, tuple):
-            outputs = outputs[0]  # použijeme hlavný výstup
+            outputs = outputs[0]
 
         loss = criterion(outputs, labels)
         preds = outputs.argmax(dim=1)
@@ -189,7 +180,7 @@ def main():
 
     print(f"Using device: {device}")
 
-    #Dáta + DataLoadery
+    #data a dataLoadery
     print("Loading data...")
     datasets_dict, dataloaders, class_names = create_dataloaders(
         args.data_dir, args.batch_size, args.num_workers
@@ -221,7 +212,7 @@ def main():
 
     class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
-    #trénujeme len parametre, ktoré majú requires_grad = True
+    #trenuju sa len parametre s requires_grad = True
     params_to_update = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.Adam(
         params_to_update,
@@ -232,7 +223,7 @@ def main():
     best_val_acc = 0.0
     best_model_path = os.path.join(args.output_dir, "best_inception_v3.pth")
 
-    #Tréningová slučka
+    #tg slucka
     history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
 
     for epoch in range(1, args.num_epochs + 1):
@@ -257,7 +248,7 @@ def main():
         print(f"Val   loss: {val_loss:.4f} | acc: {val_acc:.4f}")
         print(f"Epoch time: {elapsed:.1f} s")
 
-        #uložíme najlepší model podľa val_acc
+        #ulozi sa naj model podla val_acc
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), best_model_path)
@@ -265,7 +256,7 @@ def main():
 
     print(f"\nTraining finished. Best val accuracy: {best_val_acc:.4f}")
 
-    #Načítame najlepší model a otestujeme na test sete
+    #test najlepsieho modelu
     print("\nEvaluating on test set with best model...")
     model.load_state_dict(torch.load(best_model_path, map_location=device))
     test_loss, test_acc, y_true, y_pred = evaluate(
