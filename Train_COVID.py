@@ -682,13 +682,14 @@ print("Grad-CAM galéria uložená:", gallery_dir)
 
 # model card
 
-model_card = f"""# Model Card: Inception-v3 – Chest X-Ray Pneumonia
+model_card = f"""# Model Card: Inception-v3 – Covid19 radiography database
 
 ## Task
-Binary classification of chest X-ray images: **NORMAL (0)** vs **PNEUMONIA (1)**.
+Binary classification of chest X-ray images: **NORMAL (0)** vs **ABNORMAL (1)**.
 
 ## Dataset
-Public dataset: *Chest X-Ray Images (Pneumonia)* (HF mirror: `hf-vision/chest-xray-pneumonia`).
+Public dataset: *COVID-19 Radiography Database** (Kaggle): *tawsifurrahman/covid19-radiography-database*.
+This dataset contains CXR images grouped into multiple folders/classes.  
 Images were organized into folders and re-split into **70/15/15** (train/val/test).
 Split file: `splits.csv`.
 
