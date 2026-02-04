@@ -49,8 +49,7 @@ if device.type == "cuda":
     print("GPU:", torch.cuda.get_device_name(0))
 
 
-#parametre
-
+#konfigurácia experimentu
 @dataclass
 class Config:
     # Cesty
@@ -59,7 +58,7 @@ class Config:
     out_dir: str = ""
 
     # data
-    img_size: int = 299
+    img_size: int = 299    #veľkosť vstupu
     batch_size: int = 32
     num_workers: int = 2
 
@@ -78,7 +77,7 @@ class Config:
     lr_finetune: float = 1e-4
     weight_decay: float = 1e-4
 
-    # epoch
+    # epochy
     epochs_stage1: int = 3
     epochs_stage2: int = 12
 
@@ -91,7 +90,7 @@ class Config:
     scheduler_factor: float = 0.5
 
     # Grad-CAM
-    gradcam_samples: int = 16  #
+    gradcam_samples: int = 16  #koľko obrázkov do galérie (mix správnych + chýb)
     gradcam_alpha: float = 0.35
 
 cfg = Config()
@@ -109,6 +108,7 @@ POS_CLASS = 1
 KERNY_ROOT = Path("/content/data/chest_xray")
 COVID_ROOT = Path("/content/data/COVID-19_Radiography_Dataset")
 
+#Načíta všetky obrázky z NORMAL a PNEUMONIA do zoznamu
 def list_images_kermany(root: Path) -> Tuple[np.ndarray, np.ndarray]:
     paths, labels = [], []
     for split in ["train", "val", "test"]:
@@ -123,7 +123,8 @@ def list_images_kermany(root: Path) -> Tuple[np.ndarray, np.ndarray]:
                     paths.append(p)
                     labels.append(label)
     return np.array(paths), np.array(labels)
-
+    
+#Načíta všetky obrázky do zoznamu
 def list_images_covid_radiography(root: Path) -> Tuple[np.ndarray, np.ndarray]:
     paths, labels = [], []
     mapping = {
@@ -142,6 +143,7 @@ def list_images_covid_radiography(root: Path) -> Tuple[np.ndarray, np.ndarray]:
                 labels.append(y)
     return np.array(paths), np.array(labels)
 
+#Vytvorí nový split 70/15/15
 def make_split_stratified(paths: np.ndarray, labels: np.ndarray, seed: int,
                           train_ratio: float, val_ratio: float):
 
@@ -192,7 +194,6 @@ splits_df.to_csv(OUT / "splits.csv", index=False)
 print("splits.csv uložený:", OUT / "splits.csv")
 
 # Dataset + transformácie
-
 class XRayDataset(Dataset):
     def __init__(self, paths: np.ndarray, labels: np.ndarray, transform=None):
         self.paths = paths
@@ -237,7 +238,6 @@ val_loader   = DataLoader(val_ds,   batch_size=cfg.batch_size, shuffle=False, nu
 test_loader  = DataLoader(test_ds,  batch_size=cfg.batch_size, shuffle=False, num_workers=cfg.num_workers)
 
 # Inception-v3 + hlava s dropout
-
 print("\n Inicializujem model:", cfg.model_name)
 
 model = timm.create_model(cfg.model_name, pretrained=True, num_classes=cfg.num_classes)
@@ -262,7 +262,6 @@ model.classifier = head
 model = model.to(device)
 
 # Loss + vahy
-
 train_labels = splits["train"][1]
 class_counts = np.bincount(train_labels, minlength=2)
 
@@ -276,7 +275,6 @@ print("Počty tried v train:", class_counts.tolist())
 print("Váhy tried:", class_weights.tolist())
 
 # Freeze/Unfreeze
-
 def freeze_all(m: nn.Module):
     for p in m.parameters():
         p.requires_grad = False
@@ -576,7 +574,7 @@ class GradCAM:
         self.activations = None
         self.gradients = None
         self._register_hooks()
-
+    #nájde poslednú vrstvu 
     def _find_last_conv_layer(self) -> nn.Module:
         last = None
         for _, m in self.model.named_modules():
